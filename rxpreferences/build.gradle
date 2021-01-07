@@ -1,0 +1,57 @@
+apply plugin: 'com.android.library'
+apply plugin: 'com.hiya.jacoco-android'
+apply plugin: 'jacoco'
+
+android {
+    compileSdkVersion 30
+    buildToolsVersion "29.0.2"
+
+    defaultConfig {
+        minSdkVersion 21
+        targetSdkVersion 30
+        versionCode 1
+        versionName "0.1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            testCoverageEnabled true
+        }
+    }
+
+    // This enables long timeouts required on slow environments, e.g. Travis
+    adbOptions {
+        timeOutInMs 15 * 60 * 1000  // 15 minutes
+        installOptions "-d", "-t"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    implementation 'io.reactivex.rxjava3:rxjava:3.0.6'
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'org.bouncycastle:bcpkix-jdk15on:1.56'
+
+    testImplementation 'junit:junit:4.13'
+
+    androidTestImplementation 'androidx.test:runner:1.3.0'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
+}
+
+jacoco {
+    toolVersion = '0.8.5'
+}
+
+tasks.withType(Test) {
+    jacoco.includeNoLocationClasses = true
+}
