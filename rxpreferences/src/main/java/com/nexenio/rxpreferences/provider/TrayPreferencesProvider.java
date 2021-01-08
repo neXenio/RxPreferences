@@ -26,7 +26,7 @@ public class TrayPreferencesProvider extends BasePreferencesProvider {
 
     @Override
     public Observable<String> getKeys() {
-        return Observable.fromIterable(trayPreferences.getAll())
+        return Observable.defer(() -> Observable.fromIterable(trayPreferences.getAll()))
                 .map(TrayItem::key);
     }
 

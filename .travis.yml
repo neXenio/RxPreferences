@@ -50,8 +50,8 @@ before_script:
   - android list target
 
 script:
-  - travis_wait 15 ./gradlew rxkeystore:testDebugUnitTest -PdisablePreDex --stacktrace
-  - travis_wait 30 ./gradlew rxkeystore:connectedDebugAndroidTest -PdisablePreDex --stacktrace
+  - travis_wait 15 ./gradlew rxpreferences:testDebugUnitTest -PdisablePreDex --stacktrace
+  # - travis_wait 30 ./gradlew rxpreferences:connectedDebugAndroidTest -PdisablePreDex --stacktrace
   - ./gradlew jacocoTestReport
 
 after_success:

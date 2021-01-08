@@ -130,6 +130,12 @@ public abstract class BasePreferencesProvider implements PreferencesProvider {
         });
     }
 
+    @Override
+    public Completable deleteAll() {
+        return getKeys()
+                .flatMapCompletable(this::delete);
+    }
+
     public Serializer getSerializer() {
         return serializer;
     }
