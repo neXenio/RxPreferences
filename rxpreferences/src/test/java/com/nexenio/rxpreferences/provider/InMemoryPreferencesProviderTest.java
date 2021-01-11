@@ -104,6 +104,42 @@ public class InMemoryPreferencesProviderTest {
     }
 
     @Test
+    public void restoreOrDefaultAndGetChanges_keyAvailable_emitsValue() {
+        preferencesProvider.persist("1", 1)
+                .andThen(preferencesProvider.persist("1", 2))
+                .andThen(preferencesProvider.restoreOrDefaultAndGetChanges("1", 3))
+                .test()
+                .assertValue(2)
+                .assertNotComplete();
+    }
+
+    @Test
+    public void restoreOrDefaultAndGetChanges_keyAvailableAndChanges_emitsValueAndChanges() {
+        preferencesProvider.persist("1", 1)
+                .andThen(preferencesProvider.persist("1", 2))
+                .blockingAwait();
+
+        TestObserver<Integer> testObserver = preferencesProvider.restoreOrDefaultAndGetChanges("1", 3)
+                .test()
+                .assertValue(2)
+                .assertNotComplete();
+
+        preferencesProvider.persist("1", 4)
+                .blockingAwait();
+
+        testObserver.assertValues(2, 4)
+                .assertNotComplete();
+    }
+
+    @Test
+    public void restoreOrDefaultAndGetChanges_keyNotAvailable_emitsDefault() {
+        preferencesProvider.restoreOrDefaultAndGetChanges("1", 1)
+                .test()
+                .assertValue(1)
+                .assertNotComplete();
+    }
+
+    @Test
     public void restoreIfAvailable_keyAvailable_emitsValue() {
         preferencesProvider.persist("1", 1)
                 .andThen(preferencesProvider.restoreIfAvailable("1", Integer.class))

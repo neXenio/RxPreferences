@@ -45,6 +45,14 @@ public abstract class BasePreferencesProvider implements PreferencesProvider {
     }
 
     @Override
+    public <Type> Observable<Type> restoreOrDefaultAndGetChanges(@NonNull String key, @NonNull Type defaultValue) {
+        return restoreOrDefault(key, defaultValue)
+                .toObservable()
+                .mergeWith(getChanges(key, (Class<Type>) defaultValue.getClass()))
+                .distinctUntilChanged();
+    }
+
+    @Override
     public <Type> Maybe<Type> restoreIfAvailable(@NonNull String key, @NonNull Class<Type> typeClass) {
         return restoreIfAvailable(key)
                 .flatMapSingle(serializedValue -> serializer.deserializeFromString(serializedValue, typeClass))

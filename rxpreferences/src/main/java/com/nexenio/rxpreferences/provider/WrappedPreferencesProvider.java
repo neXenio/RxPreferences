@@ -36,6 +36,11 @@ public class WrappedPreferencesProvider implements PreferencesProvider {
     }
 
     @Override
+    public <Type> Observable<Type> restoreOrDefaultAndGetChanges(@NonNull String key, @NonNull Type defaultValue) {
+        return provider.restoreOrDefaultAndGetChanges(key, defaultValue);
+    }
+
+    @Override
     public <Type> Maybe<Type> restoreIfAvailable(@NonNull String key, @NonNull Class<Type> typeClass) {
         return provider.restoreIfAvailable(key, typeClass);
     }

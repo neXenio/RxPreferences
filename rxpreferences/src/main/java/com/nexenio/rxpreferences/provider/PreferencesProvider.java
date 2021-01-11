@@ -37,6 +37,12 @@ public interface PreferencesProvider {
     <Type> Single<Type> restoreOrDefault(@NonNull String key, @NonNull Type defaultValue);
 
     /**
+     * Convenience method that should combine {@link #restoreOrDefault(String, Object)} and {@link
+     * #getChanges(String, Class)}.
+     */
+    <Type> Observable<Type> restoreOrDefaultAndGetChanges(@NonNull String key, @NonNull Type defaultValue);
+
+    /**
      * Should emit the previously persisted value for the specified key, or complete empty of no
      * value is available.
      *
