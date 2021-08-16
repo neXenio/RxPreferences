@@ -18,7 +18,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.neXenio:RxPreferences:1.1.0'
+    implementation 'com.github.neXenio:RxPreferences:1.2.0'
 }
 ```
 
@@ -27,7 +27,7 @@ dependencies {
 The [PreferencesProvider][preferencesprovider] interface allows you to persist, restore or delete key-value pairs of any type. There are different implementations available:
 
 - `SharedPreferencesProvider` uses [SharedPreferences][sharedpreferences]. It's what you'd normally use in simple apps.
-- `TrayPreferencesProvider` uses [Tray][tray]. It's a `SharedPreferences` replacement with multiprocess support.
+- `EncryptedSharedPreferencesProvider` uses [EncryptedSharedPreferences][encryptedsharedpreferences]. Wraps the `SharedPreferences` class and automatically encrypts keys and values
 - `InMemoryPreferencesProvider` uses a simple `HashMap`. It's very fast but data is not actually persisted to disk. Useful for testing purposes.
 
 The most important methods are:
@@ -61,5 +61,6 @@ trayPreferencesProvider.setSerializer(new GsonSerializer(gson));
 [tray]: https://github.com/grandcentrix/tray
 [gson]: https://github.com/google/gson
 [sharedpreferences]: https://developer.android.com/training/data-storage/shared-preferences
+[encryptedsharedpreferences]: https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences
 [preferencesprovider]: rxpreferences/src/main/java/com/nexenio/rxpreferences/provider/PreferencesProvider.java
 [serializer]: rxpreferences/src/main/java/com/nexenio/rxpreferences/serializer/Serializer.java
