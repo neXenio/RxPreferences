@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import androidx.annotation.NonNull;
+
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
@@ -12,7 +13,7 @@ import io.reactivex.rxjava3.core.Single;
 public class SharedPreferencesProvider extends BasePreferencesProvider {
 
     @NonNull
-    private SharedPreferences sharedPreferences;
+    protected SharedPreferences sharedPreferences;
 
     public SharedPreferencesProvider(@NonNull Context context) {
         this(context.getSharedPreferences(context.getPackageName(), Context.MODE_PRIVATE));
