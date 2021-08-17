@@ -2,15 +2,20 @@ package com.nexenio.rxpreferences.provider;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
+
 import net.grandcentrix.tray.TrayPreferences;
 import net.grandcentrix.tray.core.TrayItem;
 
-import androidx.annotation.NonNull;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 
+/**
+ * @deprecated Tray library is no longer actively maintained
+ */
+@Deprecated
 public class TrayPreferencesProvider extends BasePreferencesProvider {
 
     @NonNull
