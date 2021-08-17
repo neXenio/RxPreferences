@@ -14,6 +14,7 @@ import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 
+@SuppressWarnings("SynchronizeOnNonFinalField")
 public class SharedPreferencesProvider extends BasePreferencesProvider {
 
     @NonNull

@@ -9,9 +9,6 @@ import com.nexenio.rxpreferences.provider.PreferencesProvider;
 import com.nexenio.rxpreferences.provider.SharedPreferencesProvider;
 import com.nexenio.rxpreferences.provider.TrayPreferencesProvider;
 
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-
 public final class RxPreferences {
 
     private RxPreferences() {
@@ -29,7 +26,7 @@ public final class RxPreferences {
         return new SharedPreferencesProvider(context);
     }
 
-    public static PreferencesProvider createEncryptedSharedPreferencesProvider(@NonNull Context context) throws GeneralSecurityException, IOException {
+    public static PreferencesProvider createEncryptedSharedPreferencesProvider(@NonNull Context context) {
         return new EncryptedSharedPreferencesProvider(context);
     }
 
