@@ -3,6 +3,9 @@ package com.nexenio.rxpreferences.provider;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import androidx.annotation.NonNull;
+import androidx.test.platform.app.InstrumentationRegistry;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -22,8 +25,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
 
-import androidx.annotation.NonNull;
-import androidx.test.platform.app.InstrumentationRegistry;
+import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 
 public class EncryptedSharedPreferencesProviderTest {
@@ -31,6 +33,10 @@ public class EncryptedSharedPreferencesProviderTest {
     private static final String SHARED_PREFERENCES_EXISTING = "shared_pref_test_existing";
     private static final String SHARED_PREFERENCES_NEW = "shared_pref_test_new";
     private static final String MASTER_KEY_ALIAS = "master_key_alias_test";
+
+    private static final String ENCRYPTED_KEYS_KEY = "__androidx_security_crypto_encrypted_prefs_key_keyset__";
+    private static final String ENCRYPTED_VALUES_KEY = "__androidx_security_crypto_encrypted_prefs_value_keyset__";
+
 
     private static Context context;
     private static KeyStore keyStore;
@@ -41,7 +47,6 @@ public class EncryptedSharedPreferencesProviderTest {
 
         keyStore = KeyStore.getInstance("AndroidKeyStore", "AndroidKeyStore");
         keyStore.load(null);
-
     }
 
     @Before
@@ -54,28 +59,38 @@ public class EncryptedSharedPreferencesProviderTest {
         clear();
     }
 
-    // Comment notes: MasterKey available / preferencesFile available / in-memory preferences available
-
-    // FFF/TFF
+    /**
+     * MasterKey unavailable
+     * Persisted preferences unavailable
+     * In-memory preferences unavailable
+     * <p>
+     * MasterKey available
+     * Persisted preferences unavailable
+     * In-memory preferences unavailable
+     */
     @Test
     public void createEncryptedSharedPreferences_nothingExists_createsPreferences() {
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
     }
 
-    // FTF
+    /**
+     * MasterKey unavailable
+     * Persisted preferences available
+     * In-memory preferences unavailable
+     */
     @Test
     public void createEncryptedSharedPreferences_sharedPreferencesFileButNoKey_unableToRestoreOldKeys() throws KeyStoreException, FileNotFoundException {
         // create valid key and file
         String testKey = "TestKey";
-        EncryptedSharedPreferencesProvider preferencesProvider = new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        EncryptedSharedPreferencesProvider preferencesProvider = new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
         preferencesProvider.persist(testKey, "Value").blockingAwait();
 
         File file = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + SHARED_PREFERENCES_NEW + ".xml");
-        Scanner myReader = new Scanner(file);
+        Scanner scanner = new Scanner(file);
         boolean containsTestKey = false;
-        while (myReader.hasNextLine()) {
-            String line = myReader.nextLine();
-            if (line.contains("string") && !(line.contains("__androidx_security_crypto_encrypted_prefs_key_keyset__") || line.contains("__androidx_security_crypto_encrypted_prefs_value_keyset__"))) {
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            if (line.contains("string") && !(line.contains(ENCRYPTED_KEYS_KEY) || line.contains(ENCRYPTED_VALUES_KEY))) {
                 containsTestKey = true;
                 break;
             }
@@ -84,66 +99,86 @@ public class EncryptedSharedPreferencesProviderTest {
 
         // remove key
         clearKeyStore();
-        removeBlockingInMemoryPreferences();
+        clearSharedPreferences();
 
-        EncryptedSharedPreferencesProvider preferencesProvider1 = new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        EncryptedSharedPreferencesProvider preferencesProvider1 = new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
         preferencesProvider1.getKeys().toList().test().assertError(SecurityException.class);
     }
 
-    // TTF
+    /**
+     * MasterKey available
+     * Persisted preferences available
+     * In-memory preferences unavailable
+     */
     @Test
     public void createEncryptedSharedPreferences_sharedPreferencesFileAndKey_createsPreferences() throws IOException {
         // create valid key
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
 
         // create valid file
         File validFile = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + SHARED_PREFERENCES_NEW + ".xml");
         File existingFile = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + SHARED_PREFERENCES_EXISTING + ".xml");
 
-        Scanner myReader = new Scanner(validFile);
+        Scanner scanner = new Scanner(validFile);
         Writer writer = new FileWriter(existingFile);
-        while (myReader.hasNextLine()) {
-            writer.write(myReader.nextLine());
+        while (scanner.hasNextLine()) {
+            writer.write(scanner.nextLine());
         }
-        myReader.close();
+        scanner.close();
         writer.close();
 
         // create new preferences from existing values
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_EXISTING, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_EXISTING, MASTER_KEY_ALIAS);
     }
 
-    // FFT/FTT
+    /**
+     * MasterKey unavailable
+     * Persisted preferences unavailable
+     * In-memory preferences available
+     * <p>
+     * MasterKey unavailable
+     * Persisted preferences available
+     * In-memory preferences available
+     */
     @Test(expected = RuntimeException.class)
     public void createEncryptedSharedPreferences_masterKeyInMemoryButDeletedInKeystore_failsToCreatePreference() throws KeyStoreException {
         // create key and in-memory reference
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
 
         // remove key from key store
         clearKeyStore();
 
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
     }
 
-    // TFT/TTT
+    /**
+     * MasterKey available
+     * Persisted preferences unavailable
+     * In-memory preferences available
+     * <p>
+     * MasterKey available
+     * Persisted preferences available
+     * In-memory preferences available
+     */
     @Test
     public void createEncryptedSharedPreferences_everythingExists_createsPreference() {
         // create key, inMemoryReference and file
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
 
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
-        deleteFile(context, SHARED_PREFERENCES_NEW);
-        new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        deleteSharedPreferencesFiles(context, SHARED_PREFERENCES_NEW);
+        new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
     }
 
     @Test
     public void clearInMemoryPreferences_unusableState_enablesCreationAgain() throws KeyStoreException {
         // create key and in-memory reference
-        EncryptedSharedPreferencesProvider preferencesProvider = new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        EncryptedSharedPreferencesProvider preferencesProvider = new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
 
         // remove key from key store
         clearKeyStore();
 
-        Single<Integer> getKeys = Single.fromCallable(() -> new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS))
+        Single<Integer> getKeys = Single.fromCallable(() -> new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS))
                 .flatMapObservable(SharedPreferencesProvider::getKeys)
                 .toList()
                 .map(List::size);
@@ -151,7 +186,7 @@ public class EncryptedSharedPreferencesProviderTest {
         getKeys.test()
                 .assertError(RuntimeException.class);
 
-        preferencesProvider.resetPreferences(context)
+        preferencesProvider.resetSharedPreferences(context)
                 .andThen(getKeys)
                 .test()
                 .assertValue(0);
@@ -160,11 +195,11 @@ public class EncryptedSharedPreferencesProviderTest {
     @Test
     public void restore_deletedMasterKeyAndKeyPreferences_restoresValue() throws KeyStoreException {
         // create key and in-memory reference
-        EncryptedSharedPreferencesProvider preferencesProvider = new TestableEncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
+        EncryptedSharedPreferencesProvider preferencesProvider = new EncryptedSharedPreferencesProvider(context, SHARED_PREFERENCES_NEW, MASTER_KEY_ALIAS);
         preferencesProvider.persist("testKey", "testValue").blockingAwait();
 
         clearKeyStore();
-        removeBlockingInMemoryPreferences();
+        clearSharedPreferences();
 
         preferencesProvider.restore("testKey", String.class)
                 .test()
@@ -173,8 +208,8 @@ public class EncryptedSharedPreferencesProviderTest {
 
     private void clear() throws KeyStoreException {
         clearKeyStore();
-        deleteFiles();
-        clearInMemoryPreferences();
+        deleteSharedPreferencesFiles();
+        clearSharedPreferences();
     }
 
     private static void clearKeyStore() throws KeyStoreException {
@@ -184,48 +219,27 @@ public class EncryptedSharedPreferencesProviderTest {
         }
     }
 
-    private static void deleteFiles() {
-        deleteFile(context, SHARED_PREFERENCES_NEW);
-        deleteFile(context, SHARED_PREFERENCES_EXISTING);
+    private static void deleteSharedPreferencesFiles() {
+        deleteSharedPreferencesFiles(context, SHARED_PREFERENCES_NEW);
+        deleteSharedPreferencesFiles(context, SHARED_PREFERENCES_EXISTING);
     }
 
-    private static void deleteFile(@NonNull Context context, String preferencesFileName) {
-        File file = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + preferencesFileName + ".xml");
-        if (file.exists()) {
-            if (!file.delete()) {
-                throw new IllegalStateException("Unable to delete preferences file");
-            }
-        }
-        file = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + preferencesFileName + ".xml.bak");
-        if (file.exists()) {
-            if (!file.delete()) {
-                throw new IllegalStateException("Unable to delete preferences file");
-            }
-        }
+    private static void deleteSharedPreferencesFiles(@NonNull Context context, String sharedPreferencesName) {
+        Observable.just(
+                new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + sharedPreferencesName + ".xml"),
+                new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + sharedPreferencesName + ".xml.bak")
+        ).filter(File::exists).map(File::delete).ignoreElements().blockingAwait();
     }
 
-    private static void clearInMemoryPreferences() {
-        removeBlockingInMemoryPreference(context.getSharedPreferences(SHARED_PREFERENCES_NEW, Context.MODE_PRIVATE));
-        removeBlockingInMemoryPreference(context.getSharedPreferences(SHARED_PREFERENCES_EXISTING, Context.MODE_PRIVATE));
+    private static void clearSharedPreferences() {
+        clearSharedPreferences(context.getSharedPreferences(SHARED_PREFERENCES_NEW, Context.MODE_PRIVATE));
+        clearSharedPreferences(context.getSharedPreferences(SHARED_PREFERENCES_EXISTING, Context.MODE_PRIVATE));
     }
 
-    private static void clearInMemoryPreference(SharedPreferences sharedPreferences) {
-        sharedPreferences
-                .edit()
-                .clear()
-                .commit();
-    }
-
-    private static void removeBlockingInMemoryPreferences() {
-        removeBlockingInMemoryPreference(context.getSharedPreferences(SHARED_PREFERENCES_NEW, Context.MODE_PRIVATE));
-        removeBlockingInMemoryPreference(context.getSharedPreferences(SHARED_PREFERENCES_EXISTING, Context.MODE_PRIVATE));
-    }
-
-    private static void removeBlockingInMemoryPreference(SharedPreferences sharedPreferences) {
-        sharedPreferences
-                .edit()
-                .remove("__androidx_security_crypto_encrypted_prefs_key_keyset__")
-                .remove("__androidx_security_crypto_encrypted_prefs_value_keyset__")
+    private static void clearSharedPreferences(SharedPreferences sharedPreferences) {
+        sharedPreferences.edit()
+                .remove(ENCRYPTED_KEYS_KEY)
+                .remove(ENCRYPTED_VALUES_KEY)
                 .commit();
     }
 

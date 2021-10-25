@@ -3,18 +3,20 @@ package com.nexenio.rxpreferences.provider;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import java.io.File;
-
 import androidx.annotation.NonNull;
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKey;
+
+import java.io.File;
+
 import io.reactivex.rxjava3.core.Completable;
+import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 
 /**
  * Provider that uses Androids {@link EncryptedSharedPreferences} for storing keys and values
  * encrypted.
- *
+ * <p>
  * Note taken from a <a href="https://google.github.io/tink/javadoc/tink-android/1.5.0/">library</a>
  * (AndroidKeysetManager) used for this:
  *
@@ -22,12 +24,12 @@ import io.reactivex.rxjava3.core.Single;
  * Warning: because Android Keystore is unreliable, we strongly recommend disabling it by not
  * setting any master key URI. If a master key URI is set with AndroidKeysetManager.Builder.withMasterKeyUri(java.lang.String),
  * the keyset may be encrypted with a key generated and stored in Android Keystore.
- *
+ * <p>
  * Android Keystore is only available on Android M or newer. Since it has been found that Android
  * Keystore is unreliable on certain devices. Tink runs a self-test to detect such problems and
  * disables Android Keystore accordingly, even if a master key URI is set. You can check whether
  * Android Keystore is in use with isUsingKeystore().
- *
+ * <p>
  * When Android Keystore is disabled or otherwise unavailable, keysets will be stored in cleartext.
  * This is not as bad as it sounds because keysets remain inaccessible to any other apps running on
  * the same device. Moreover, as of July 2020, most active Android devices support either full-disk
@@ -44,22 +46,32 @@ import io.reactivex.rxjava3.core.Single;
 public class EncryptedSharedPreferencesProvider extends SharedPreferencesProvider {
 
     public static final String SHARED_PREFERENCES_NAME = "encrypted_shared_preferences";
+    public static final String MASTER_KEY_ALIAS = MasterKey.DEFAULT_MASTER_KEY_ALIAS;
+
+    private final String sharedPreferencesName;
+    private final String masterKeyAlias;
 
     public EncryptedSharedPreferencesProvider(@NonNull Context context) {
+        this(context, SHARED_PREFERENCES_NAME, MASTER_KEY_ALIAS);
+    }
+
+    public EncryptedSharedPreferencesProvider(@NonNull Context context, @NonNull String sharedPreferencesName, @NonNull String masterKeyAlias) {
         super(context);
-        sharedPreferences = createEncryptedSharedPreferences(context).blockingGet();
+        this.sharedPreferencesName = sharedPreferencesName;
+        this.masterKeyAlias = masterKeyAlias;
+        this.sharedPreferences = createEncryptedSharedPreferences(context).blockingGet();
     }
 
     protected Single<SharedPreferences> createEncryptedSharedPreferences(@NonNull Context context) {
         return Single.fromCallable(() -> {
-            MasterKey masterKey = new MasterKey.Builder(context, MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+            MasterKey masterKey = new MasterKey.Builder(context, masterKeyAlias)
                     .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
                     .setRequestStrongBoxBacked(true)
                     .build();
 
             return EncryptedSharedPreferences.create(
                     context,
-                    SHARED_PREFERENCES_NAME,
+                    sharedPreferencesName,
                     masterKey,
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
@@ -68,37 +80,28 @@ public class EncryptedSharedPreferencesProvider extends SharedPreferencesProvide
     }
 
     /**
-     * Clear preferences in-memory and in the files. This should be done if the master key used is
-     * lost or if you wish to remove preferences.
+     * Clears the underlying shared preferences in-memory and deletes the persisted files.
+     * This needs to be done if the used master key is lost.
      */
-    public Completable resetPreferences(@NonNull Context context) {
-        return Completable.fromAction(() -> context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .clear()
-                .commit())
-                .andThen(deletePreferencesFile(context))
-                .andThen(Completable.fromAction(() -> sharedPreferences = createEncryptedSharedPreferences(context).blockingGet()));
+    public Completable resetSharedPreferences(@NonNull Context context) {
+        return Completable.fromAction(() -> context.getSharedPreferences(sharedPreferencesName, Context.MODE_PRIVATE)
+                .edit().clear().commit())
+                .andThen(deletePreferencesFiles(context))
+                .andThen(createEncryptedSharedPreferences(context)
+                        .doOnSuccess(resetSharedPreferences -> this.sharedPreferences = resetSharedPreferences)
+                        .ignoreElement()
+                );
     }
 
     /**
      * Delete persisted shared preferences, so that it can't be restored on the next application
      * start.
      */
-    public Completable deletePreferencesFile(@NonNull Context context) {
-        return Completable.fromAction(() -> {
-            File file = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + SHARED_PREFERENCES_NAME + ".xml");
-            if (file.exists()) {
-                if (!file.delete()) {
-                    throw new IllegalStateException("Unable to delete preferences file");
-                }
-            }
-            file = new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + SHARED_PREFERENCES_NAME + ".xml.bak");
-            if (file.exists()) {
-                if (!file.delete()) {
-                    throw new IllegalStateException("Unable to delete preferences file");
-                }
-            }
-        });
+    public Completable deletePreferencesFiles(@NonNull Context context) {
+        return Observable.just(
+                new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + sharedPreferencesName + ".xml"),
+                new File(context.getApplicationInfo().dataDir + "/shared_prefs/" + sharedPreferencesName + ".xml.bak")
+        ).filter(File::exists).map(File::delete).ignoreElements();
     }
 
 }

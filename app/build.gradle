@@ -24,12 +24,12 @@ android {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(path: ':rxpreferences')
     implementation 'androidx.appcompat:appcompat:1.3.1'
     implementation 'androidx.security:security-crypto:1.1.0-alpha03'
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.0'
+    
     testImplementation 'junit:junit:4.13.1'
     androidTestImplementation 'androidx.test:runner:1.4.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
-    implementation 'io.reactivex.rxjava3:rxjava:3.1.0'
-    implementation project(path: ':rxpreferences')
 }
