@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,8 +55,8 @@ public class EncryptedSharedPreferencesProviderTest {
         clear();
     }
 
-    @After
-    public void cleanUp() throws KeyStoreException {
+    @AfterClass
+    public static void cleanUp() throws Exception {
         clear();
     }
 
@@ -206,7 +207,7 @@ public class EncryptedSharedPreferencesProviderTest {
                 .assertValue("testValue");
     }
 
-    private void clear() throws KeyStoreException {
+    private static void clear() throws KeyStoreException {
         clearKeyStore();
         deleteSharedPreferencesFiles();
         clearSharedPreferences();
